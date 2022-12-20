@@ -1,0 +1,71 @@
+env:
+    credentials: "ENCRYPTED[!a27be0f4858421619164791355b55404da2207190e137d3b8fcb7442d9d5513dda26ed3cedaf529a0289c1c971800647!]"
+    rcloneconfig: "ENCRYPTED[!91ade51bd0c1bfe8b06d0e7eb1622ed5e48009a486e3aed3c88788b520ca2292a8e13d217950781d1d48a31ba4e18019!]"
+    tokentl: "ENCRYPTED[!ed426c81503778dd57bf2762c693ddc947c35230c7e683121a65ee6498c899806e9062bb235803a59b51ce7891ac72ce!]"
+    idtl: "ENCRYPTED[!4de30c8ef58a465021ce742ef1c1e8ac6922d31236ce35439a8fb6f855b930ebba6b400ad8daf4f4d5288b08321bd326!]"
+    lunch: lunch evolution_vayu-userdebug
+    make: make evolution
+ 
+task:
+  name: "Setting Up, Syncing, Building and Uploading..."
+  timeout_in: 480m
+  container:
+      image: inok2341/anu:latest
+      cpu: 8
+      memory: 32G
+
+  Build-Env-Setup_background_script:
+       - export DEBIAN_FRONTEND=noninteractive
+       - mkdir -p ~/.config/rclone
+       - echo "$rcloneconfig" > ~/.rclone.conf
+       - git config --global user.name "Rahmad Adi Pratama"
+       - git config --global user.email "OhMyVenyx@proton.me"
+       - echo "$credentials" > ~/.git-credentials
+       - git config --global credential.helper store --file=~/.git-credentials
+       - mkdir -p ~/ccache
+       - rclone copy venyx:evox/ccache.tar.gz ~/ -P
+       - cd ~/
+       - time tar xf ccache.tar.gz
+       - cd ~/
+
+  Storage-Checker_background_script:
+      - df -h
+      - lsblk
+      - ls -l -a -h
+      - ./w.sh
+
+  Sync_script:
+      - curl -s https://api.telegram.org/$tokentl/sendMessage -d chat_id=$idtl -d text="Start sync Source"
+      - mkdir -p ~/rom
+      - cd ~/rom
+      - rm -rf * .repo
+      - mkdir -p ~/.anu
+      - export PATH="~/.anu:$PATH"
+      - curl http://commondatastorage.googleapis.com/git-repo-downloads/repo > ~/.anu/repo
+      - chmod a+x ~/.anu/repo
+      - repo init -q --no-repo-verify --depth=1 -u https://github.com/Evolution-X/manifest -b tiramisu -g default,-mips,-darwin,-notdefault
+      - git clone --depth 1 https://github.com/IDN-Labs/local_manifest.git -b evox-13.0-vayu .repo/local_manifests
+      - repo sync -c --no-clone-bundle --no-tags --optimized-fetch --prune --force-sync -j8 --fail-fast
+      - curl -s https://api.telegram.org/$tokentl/sendMessage -d chat_id=$idtl -d text="Sync Completed!"
+
+  Build_script:
+      - export BUILD_USERNAME="venyx"
+      - export BUILD_HOSTNAME="IDN-Labs"
+      - sudo ln -sf /usr/share/zoneinfo/Asia/Jakarta /etc/localtime
+      - curl -s https://api.telegram.org/$tokentl/sendMessage -d chat_id=$idtl -d text="Build Started!"
+      - ./collect.sh
+#      - ./final.sh
+      - curl -s https://api.telegram.org/$tokentl/sendMessage -d chat_id=$idtl -d text="Build $(cd ~/rom/out/target/product/vayu/ && ls evolution_vayu*.zip) Completed!"
+
+  Upload_script:
+#      - curl -sL https://git.io/file-transfer | sh && ./transfer wet ~/rom/out/target/product/juice/awaken-*.zip
+#      - curl -s https://api.telegram.org/$tokentl/sendMessage -d chat_id=$idtl -d text="Uploading Build $(cd ~/rom/out/target/product/vayu/ && ls evolution_vayu*.zip)"
+ #     - rclone copy ~/rom/out/target/product/vayu/evolution_vayu*.zip venyx:vayu -P
+#      - curl -s https://api.telegram.org/$tokentl/sendMessage -d chat_id=$idtl -d text="Build $(cd ~/rom/out/target/product/vayu/ && ls evolution_vayu*.zip) Uploaded Successfully!"
+      - curl -s https://api.telegram.org/$tokentl/sendMessage -d chat_id=$idtl -d text="Compres ccache"
+      - ./ziping.sh
+      - cd ~/
+      - curl -s https://api.telegram.org/$tokentl/sendMessage -d chat_id=$idtl -d text="Uploading ccache...."
+      - rclone copy ccache.tar.gz venyx:evox -P
+      - curl -s https://api.telegram.org/$tokentl/sendMessage -d chat_id=$idtl -d text="Ccache Uploaded Successfully!"
+
